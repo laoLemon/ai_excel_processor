@@ -1,12 +1,18 @@
+import configparser
+
 import streamlit as st
 import pandas as pd
 import os
+from core.ai_client import AIClient
 from core.data_engine import DataEngine
 from core.prompt_mgr import process_records  # 确保你之前的 replace 逻辑在这个函数里
 
 # 页面配置：使用宽屏模式方便并排显示
 st.set_page_config(layout="wide")
-st.title("💊 医药数据 AI Prompt 设计器")
+st.title("💊 Execl批量生成AI数据")
+
+config = configparser.ConfigParser()
+config.read('config/config.ini', encoding='utf-8')
 
 # 初始化 session_state
 if 'engine' not in st.session_state:
@@ -83,25 +89,38 @@ if uploaded_file:
         st.divider()
         if user_template:
             if st.button("🚀 生成全部数据 Prompt", type="primary", use_container_width=True):
+                # 1. 生成并调用 AI
                 all_prompts = process_records(records, user_template)
-                st.success(f"成功为 {len(all_prompts)} 行数据生成了 Prompt！")
 
-                with st.expander("点击查看生成结果的前 5 条示例"):
-                    for i, p in enumerate(all_prompts[:5]):
-                        st.text_area(f"Row {i + 1}", p, height=100)
+                with st.status("正在调用 AI 处理数据...", expanded=True) as status:
+                    ai_processor = AIClient(api_key=config['openai']['api_key'], model="gpt-4o-mini")
+                    final_results = ai_processor.batch_generate(all_prompts, max_workers=10)
+                    status.update(label="处理完成！", state="complete", expanded=False)
 
-                # 1. 直接把这“一条”模板存入后端 session 或变量
-                st.session_state.final_template = user_template
+                # 2. 将结果写回 session_state 中的 dataframe
+                # 假设我们将结果列命名为 "AI_处理结果"
+                st.session_state.engine.df["AI_处理结果"] = final_results
 
-                st.success("✅ 模板已锁定！后端现在可以使用此模板动态生成数据。")
+                # 3. 界面反馈
+                st.balloons()
+                st.success(f"✅ 已完成 {len(final_results)} 行数据的 AI 处理！")
 
-                # 展示后端拿到的到底是什么
-                st.write("后端当前持有的模板变量：")
-                st.code(st.session_state.final_template)
+                # 4. 展示最终表格
+                st.subheader("📊 处理结果预览")
+                st.dataframe(st.session_state.engine.df, use_container_width=True)
 
-                # 2. 此时你可以调用后端的一个“总控方法”，只把模板传进去
-                # backend_processor.run_all(st.session_state.final_template)
-                # st.balloons()
+                # 5. 提供下载功能
+                # 将结果保存为字节流提供下载
+                output_path = "processed_data.xlsx"
+                st.session_state.engine.df.to_excel(output_path, index=False)
+
+                with open(output_path, "rb") as f:
+                    st.download_button(
+                        label="📥 下载处理好的 Excel 文件",
+                        data=f,
+                        file_name="医药数据处理结果.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
 
     # 清理临时文件
     if os.path.exists(temp_path):
