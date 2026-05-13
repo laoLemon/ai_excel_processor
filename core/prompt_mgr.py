@@ -1,6 +1,4 @@
 import re
-
-
 def process_records(records, template):
     """
     输入: records (list[dict])

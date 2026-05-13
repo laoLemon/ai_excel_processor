@@ -49,9 +49,24 @@ class DataEngine:
             return self.df.iloc[index].to_dict()
         return None
 
-    def save_result(self, results, output_column="AI_Result"):
-        """将 AI 生成的列表写回 DataFrame 并保存"""
+    def save_result(self, results, output_column="AI_Result", export_dir="data/output"):
+        """
+        将 AI 生成的列表写回 DataFrame 并保存到指定目录
+        :param results: AI 返回的结果列表
+        :param output_column: 新增加的列名
+        :param export_dir: 导出的目标目录路径
+        """
+        # 1. 将结果写入内存中的 DataFrame
         self.df[output_column] = results
-        output_path = f"processed_{os.path.basename(self.file_path)}"
+
+        # 2. 确保目标目录存在，如果不存在则创建
+        if not os.path.exists(export_dir):
+            os.makedirs(export_dir)
+
+        # 3. 拼接文件名：原文件名前加上 processed_
+        file_name = f"processed_{os.path.basename(self.file_path)}"
+        output_path = os.path.join(export_dir, file_name)
+
+        # 4. 保存文件
         self.df.to_excel(output_path, index=False)
         return output_path

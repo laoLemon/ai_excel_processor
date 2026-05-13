@@ -7,7 +7,7 @@ venv/
 .venv/
 
 # 3. 忽略敏感配置文件
-config/settings.py
+config/config.ini
 
 # 4. 核心修改：只保留 data 下的分类目录映射
 # 首先，依然忽略 data 文件夹（但注意不要写成 data/，因为这样无法通过“!”排除子目录）
